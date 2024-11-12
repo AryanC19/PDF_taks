@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Co-Viewer</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+</head>
+<body>
+    <h1>PDF Co-Viewer</h1>
+    <canvas id="pdf-render"></canvas>
+    <button onclick="previousPage()">Previous</button>
+    <button onclick="nextPage()">Next</button>
+
+    <script>
+        const socket = io(); // Connect to the server
+        let pdfDoc = null;
+        let pageNum = 1;
+
+        // Load the PDF using pdf.js
+        const url = 'your-pdf-url.pdf';
+        pdfjsLib.getDocument(url).promise.then((pdfDoc_) => {
+            pdfDoc = pdfDoc_;
+            renderPage(pageNum);
+        });
+
+        // Render a page
+        function renderPage(num) {
+            pdfDoc.getPage(num).then((page) => {
+                const canvas = document.getElementById('pdf-render');
+                const context = canvas.getContext('2d');
+                const viewport = page.getViewport({ scale: 1.5 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                page.render({ canvasContext: context, viewport });
+            });
+        }
+
+        // Admin controls
+        function previousPage() {
+            if (pageNum <= 1) return;
+            pageNum--;
+            socket.emit('pageChange', pageNum); // Broadcast change
+            renderPage(pageNum);
+        }
+
+        function nextPage() {
+            if (pageNum >= pdfDoc.numPages) return;
+            pageNum++;
+            socket.emit('pageChange', pageNum); // Broadcast change
+            renderPage(pageNum);
+        }
+
+        // Listen for page updates from the server
+        socket.on('pageUpdate', (newPageNum) => {
+            pageNum = newPageNum;
+            renderPage(pageNum);
+        });
+    </script>
+</body>
+</html>
